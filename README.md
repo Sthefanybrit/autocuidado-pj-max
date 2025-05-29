@@ -15,7 +15,7 @@
 ## 2. Descrição Detalhada do Projeto
 
 ### O que é o projeto?
-Teatime é uma plataforma web moderna e responsiva voltada para o bem-estar e equilíbrio emocional, permitindo ao utilizador acompanhar seus hábitos diários, metas e progresso pessoal, com funcionalidades de gamificação e mensagens motivacionais.
+Plano de Autocuidado é uma plataforma web moderna e responsiva voltada para o bem-estar e equilíbrio emocional, permitindo ao utilizador acompanhar seus hábitos diários, metas e progresso pessoal, com funcionalidades de gamificação e mensagens motivacionais.
 
 ### 2.1 Funcionalidades Principais
 - **Funcionalidade 01:** Criar e gerenciar hábitos personalizados (ex:hidratação, exercícios, skincare).  
@@ -30,7 +30,9 @@ teatime/
 ├── main.py                         
 ├── models.py          
 ├── schemas.py         
-├── database.py          
+├── database.py  
+├── Dockerfile
+├── requirements.txt     
 ├── data/
 |   |── users.json         
 |   |── habits.json          
