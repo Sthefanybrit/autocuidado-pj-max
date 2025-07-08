@@ -26,17 +26,16 @@ Plano de Autocuidado é uma plataforma web moderna e responsiva voltada para o b
 
 ### 2.2 Arquitetura do Código
 ```plaintext
-teatime/
+Autocuidado/
 ├── main.py                         
 ├── models.py          
 ├── schemas.py         
-├── database.py  
+├── database.py 
+├── client.py
+├── autocuidado.db 
 ├── Dockerfile
-├── requirements.txt     
-├── data/
-|   |── users.json         
-|   |── habits.json          
-|   |── logs.json          
+├── README.md
+├── requirements.txt              
 ```
 
 ## 3. Etapas de Entrega (Cronograma Detalhado)
