@@ -1,35 +1,61 @@
 from pydantic import BaseModel
 from typing import Optional
+from datetime import date
 
-# Usuário
-class UserCreate(BaseModel):
+# --------------------------
+# USUÁRIO
+# --------------------------
+class UserBase(BaseModel):
     name: str
     email: str
+
+class UserCreate(UserBase):
     senha: str
 
-class User(UserCreate):
+class User(UserBase):
     id: int
 
-# Hábito
-class HabitCreate(BaseModel):
+    class Config:
+        orm_mode = True
+
+# --------------------------
+# HÁBITOS
+# --------------------------
+class HabitBase(BaseModel):
     title: str
     description: str
     user_id: int
 
-class Habit(HabitCreate):
-    id: int
-    favorito: bool 
+class HabitCreate(HabitBase):
+    pass
 
-# Log de hábito diário
-class LogCreate(BaseModel):
+class Habit(HabitBase):
+    id: int
+    favorito: Optional[bool] = False
+
+    class Config:
+        orm_mode = True
+
+# --------------------------
+# LOGS
+# --------------------------
+class LogBase(BaseModel):
     user_id: int
     habit_id: int
-    date: Optional[str] = None
 
-class Log(LogCreate):
+class LogCreate(LogBase):
+    date: Optional[date] = None  # aceita None ou uma data válida
+
+class Log(LogBase):
     id: int
+    date: date
 
-# Login
+    class Config:
+        orm_mode = True
+
+# --------------------------
+# LOGIN
+# --------------------------
 class LoginInput(BaseModel):
     email: str
     senha: str

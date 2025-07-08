@@ -1,40 +1,24 @@
-import json
-import os
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from models import User, Base
 
-DATA_DIR = "data"
-USERS_FILE = os.path.join(DATA_DIR, "users.json")
-HABITS_FILE = os.path.join(DATA_DIR, "habits.json")
-LOGS_FILE = os.path.join(DATA_DIR, "logs.json")
+DATABASE_URL = "sqlite:///./autocuidado.db"
 
-def init_files():
-    os.makedirs(DATA_DIR, exist_ok=True)
-    for file in [USERS_FILE, HABITS_FILE, LOGS_FILE]:
-        if not os.path.exists(file):
-            with open(file, "w") as f:
-                json.dump([], f)
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+db = SessionLocal()
 
-init_files()
+def listar_usuarios():
+    usuarios = db.query(User).all()
+    if not usuarios:
+        print("Nenhum usuário encontrado no banco.")
+    else:
+        for u in usuarios:
+            print(f"ID: {u.id}, Nome: {u.name}, Email: {u.email}")
 
-def read_users():
-    with open(USERS_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+# ✅ ESTA PARTE É NOVA
+def init_db():
+    Base.metadata.create_all(bind=engine)
 
-def write_users(data):
-    with open(USERS_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
-
-def read_habits():
-    with open(HABITS_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-def write_habits(data):
-    with open(HABITS_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
-
-def read_logs():
-    with open(LOGS_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-def write_logs(data):
-    with open(LOGS_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
+if __name__ == "__main__":
+    listar_usuarios()
