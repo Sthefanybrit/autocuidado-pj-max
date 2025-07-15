@@ -1,0 +1,18 @@
+{
+    "usuario": {
+        "id": 1,
+        "name": "Sthefany ",
+        "email": "sthefany123@gmail.com"
+    },
+    "habitos": [
+        {
+            "id": 1,
+            "user_id": 1,
+            "title": "correr",
+            "description": "corra 5km"
+        }
+    ],
+    "registros": [
+        {
+            "id": 1,
+            "date": 

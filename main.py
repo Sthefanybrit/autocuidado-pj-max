@@ -4,9 +4,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 import sqlite3
-from models import User as DBUser, Habit as DBHabit, Log as DBLog
-from database import SessionLocal
-from schemas import UserCreate, User, HabitCreate, Habit, LogCreate, Log, LoginInput
+from models import Usuario as UsuarioDB, Habito as HabitoDB, Registro as RegistroDB
+from database import SessionLocal, init_db
+from schemas import UsuarioCriar, Usuario, HabitoCriar, Habito, RegistroCriar, Registro, LoginInput
 from typing import List
 from datetime import date, timedelta
 import random
@@ -16,6 +16,8 @@ import os
 
 app = FastAPI(title="Plano de Autocuidado")
 
+init_db()  # inicializa o banco na primeira execução
+
 def get_db():
     db = SessionLocal()
     try:
@@ -23,194 +25,147 @@ def get_db():
     finally:
         db.close()
 
-# Hash de senha
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
-# Middleware para capturar erro 422 (validação)
 @app.exception_handler(422)
 async def validation_exception_handler(request: Request, exc):
     return JSONResponse(
         status_code=422,
         content={"mensagem": "Erro de validação de dados. Verifique os campos enviados."}
     )
+
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
     if isinstance(dbapi_connection, sqlite3.Connection):
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON;")
         cursor.close()
-# Usuário
-@app.get("/users/", response_model=List[User])
-def get_users(db: Session = Depends(get_db)):
-    return db.query(DBUser).all()
 
-@app.post("/users/")
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
-    try:
-        existing = db.query(DBUser).filter(DBUser.email == user.email).first()
-        if existing:
-            raise HTTPException(status_code=400, detail="E-mail já cadastrado.")
+# ==== Usuário ====
 
-        hashed = hash_password(user.senha)
-        new_user = DBUser(name=user.name, email=user.email, senha=hashed)
-        db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
+@app.get("/usuarios/", response_model=List[Usuario])
+def listar_usuarios(db: Session = Depends(get_db)):
+    return db.query(UsuarioDB).all()
 
-        return {
-            "mensagem": "Usuário criado com sucesso!",
-            "user": {
-                "id": new_user.id,
-                "name": new_user.name,
-                "email": new_user.email
-            }
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro interno ao criar usuário: {str(e)}")
+@app.post("/usuarios/")
+def criar_usuario(usuario: UsuarioCriar, db: Session = Depends(get_db)):
+    existente = db.query(UsuarioDB).filter(UsuarioDB.email == usuario.email).first()
+    if existente:
+        raise HTTPException(status_code=400, detail="E-mail já cadastrado.")
 
-@app.put("/users/{user_id}", response_model=User)
-def update_user(user_id: int, user_update: UserCreate, db: Session = Depends(get_db)):
-    user = db.query(DBUser).filter(DBUser.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
-    user.name = user_update.name
-    user.email = user_update.email
-    user.senha = hash_password(user_update.senha)
+    hashed = hash_password(usuario.senha)
+    novo = UsuarioDB(name=usuario.name, email=usuario.email, senha=hashed)
+    db.add(novo)
     db.commit()
-    return user
+    db.refresh(novo)
 
-@app.delete("/users/{user_id}")
-def delete_user(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(DBUser).filter(DBUser.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
-
-    try:
-        # Buscar IDs dos hábitos do usuário
-        habit_ids = [habit.id for habit in db.query(DBHabit).filter(DBHabit.user_id == user_id).all()]
-
-        # Deleta os logs associados a esses hábitos
-        if habit_ids:
-            db.query(DBLog).filter(DBLog.habit_id.in_(habit_ids)).delete(synchronize_session=False)
-
-        # Deleta os hábitos do usuário
-        db.query(DBHabit).filter(DBHabit.user_id == user_id).delete(synchronize_session=False)
-
-        # Deleta os logs diretamente associados ao usuário (caso existam)
-        db.query(DBLog).filter(DBLog.user_id == user_id).delete(synchronize_session=False)
-
-        # Deleta o usuário
-        db.delete(user)
-
-        db.commit()
-        return {"message": f"Usuário {user_id} deletado com sucesso."}
-    except Exception as e:
-        db.rollback()
-        print(f"Erro ao deletar usuário: {e}")
-        raise HTTPException(status_code=500, detail=f"Erro ao deletar usuário: {str(e)}")
-
-
-# Login
-@app.post("/login")
-def login(login_data: LoginInput, db: Session = Depends(get_db)):
-    user = db.query(DBUser).filter(DBUser.email == login_data.email).first()
-    if not user or user.senha != hash_password(login_data.senha):
-        raise HTTPException(status_code=401, detail="E-mail ou senha incorretos.")
-    return {"mensagem": "Login bem-sucedido!", "user_id": user.id}
-
-# Exportar dados
-@app.get("/exportar/{user_id}")
-def exportar_dados(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(DBUser).filter(DBUser.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
-    habits = db.query(DBHabit).filter(DBHabit.user_id == user_id).all()
-    logs = db.query(DBLog).filter(DBLog.user_id == user_id).all()
-
-    dados = {
-        "usuario": {"id": user.id, "name": user.name, "email": user.email},
-        "habitos": [habit.__dict__ for habit in habits],
-        "registros": [log.__dict__ for log in logs]
+    return {
+        "mensagem": "Usuário criado com sucesso!",
+        "usuario": {
+            "id": novo.id,
+            "name": novo.name,
+            "email": novo.email
+        }
     }
 
-    for item in dados["habitos"] + dados["registros"]:
-        item.pop("_sa_instance_state", None)
-
-    path = f"data/usuario_{user_id}_exportado.json"
-    os.makedirs("data", exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(dados, f, indent=4, ensure_ascii=False)
-
-    return FileResponse(path, media_type="application/json", filename=f"usuario_{user_id}.json")
-
-# Hábitos
-@app.get("/habits/", response_model=List[Habit])
-def get_habits(db: Session = Depends(get_db)):
-    return db.query(DBHabit).all()
-
-@app.post("/habits/", response_model=Habit)
-def create_habit(habit: HabitCreate, db: Session = Depends(get_db)):
-    new_habit = DBHabit(**habit.dict())
-    db.add(new_habit)
+@app.put("/usuarios/{usuario_id}", response_model=Usuario)
+def atualizar_usuario(usuario_id: int, dados: UsuarioCriar, db: Session = Depends(get_db)):
+    usuario = db.query(UsuarioDB).filter(UsuarioDB.id == usuario_id).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+    usuario.name = dados.name
+    usuario.email = dados.email
+    usuario.senha = hash_password(dados.senha)
     db.commit()
-    db.refresh(new_habit)
-    return new_habit
+    return usuario
 
-@app.put("/habits/{habit_id}", response_model=Habit)
-def update_habit(habit_id: int, habit_update: HabitCreate, db: Session = Depends(get_db)):
-    habit = db.query(DBHabit).filter(DBHabit.id == habit_id).first()
-    if not habit:
+@app.delete("/usuarios/{usuario_id}")
+def excluir_usuario(usuario_id: int, db: Session = Depends(get_db)):
+    usuario = db.query(UsuarioDB).filter(UsuarioDB.id == usuario_id).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+    try:
+        habito_ids = [h.id for h in db.query(HabitoDB).filter(HabitoDB.user_id == usuario_id).all()]
+        if habito_ids:
+            db.query(RegistroDB).filter(RegistroDB.habit_id.in_(habito_ids)).delete(synchronize_session=False)
+        db.query(HabitoDB).filter(HabitoDB.user_id == usuario_id).delete(synchronize_session=False)
+        db.query(RegistroDB).filter(RegistroDB.user_id == usuario_id).delete(synchronize_session=False)
+        db.delete(usuario)
+        db.commit()
+        return {"mensagem": f"Usuário {usuario_id} deletado com sucesso."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Erro ao deletar usuário: {str(e)}")
+
+# ==== Login ====
+
+@app.post("/login")
+def login(dados: LoginInput, db: Session = Depends(get_db)):
+    usuario = db.query(UsuarioDB).filter(UsuarioDB.email == dados.email).first()
+    if not usuario or usuario.senha != hash_password(dados.senha):
+        raise HTTPException(status_code=401, detail="E-mail ou senha incorretos.")
+    return {"mensagem": "Login bem-sucedido!", "usuario_id": usuario.id}
+
+
+# ==== Hábitos ====
+
+@app.get("/habitos/", response_model=List[Habito])
+def listar_habitos(db: Session = Depends(get_db)):
+    return db.query(HabitoDB).all()
+
+@app.post("/habitos/", response_model=Habito)
+def criar_habito(habito: HabitoCriar, db: Session = Depends(get_db)):
+    novo = HabitoDB(**habito.dict())
+    db.add(novo)
+    db.commit()
+    db.refresh(novo)
+    return novo
+
+@app.put("/habitos/{habito_id}", response_model=Habito)
+def atualizar_habito(habito_id: int, dados: HabitoCriar, db: Session = Depends(get_db)):
+    habito = db.query(HabitoDB).filter(HabitoDB.id == habito_id).first()
+    if not habito:
         raise HTTPException(status_code=404, detail="Hábito não encontrado.")
-    habit.title = habit_update.title
-    habit.description = habit_update.description
-    habit.user_id = habit_update.user_id
+    habito.title = dados.title
+    habito.description = dados.description
+    habito.user_id = dados.user_id
     db.commit()
-    return habit
+    return habito
 
-@app.delete("/habits/{habit_id}")
-def delete_habit(habit_id: int, db: Session = Depends(get_db)):
-    habit = db.query(DBHabit).filter(DBHabit.id == habit_id).first()
-    if not habit:
+@app.delete("/habitos/{habito_id}")
+def excluir_habito(habito_id: int, db: Session = Depends(get_db)):
+    habito = db.query(HabitoDB).filter(HabitoDB.id == habito_id).first()
+    if not habito:
         raise HTTPException(status_code=404, detail="Hábito não encontrado")
 
     try:
-        # Deleta os logs associados a esse hábito
-        db.query(DBLog).filter(DBLog.habit_id == habit_id).delete(synchronize_session=False)
-
-        # Deleta o hábito
-        db.delete(habit)
+        db.query(RegistroDB).filter(RegistroDB.habit_id == habito_id).delete(synchronize_session=False)
+        db.delete(habito)
         db.commit()
-
-        return {"message": f"Hábito {habit_id} deletado com sucesso."}
+        return {"mensagem": f"Hábito {habito_id} deletado com sucesso."}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Erro ao deletar hábito: {str(e)}")
 
-@app.put("/habits/{habit_id}/favorito")
-def toggle_favorito(habit_id: int, db: Session = Depends(get_db)):
-    habit = db.query(DBHabit).filter(DBHabit.id == habit_id).first()
-    if not habit:
-        raise HTTPException(status_code=404, detail="Hábito não encontrado.")
-    habit.favorito = not habit.favorito
+# ==== Registros ====
+
+@app.post("/registros/", response_model=Registro)
+def criar_registro(registro: RegistroCriar, db: Session = Depends(get_db)):
+    data_registro = registro.date or date.today()
+    novo = RegistroDB(user_id=registro.user_id, habit_id=registro.habit_id, date=data_registro)
+    db.add(novo)
     db.commit()
-    return {"id": habit.id, "favorito": habit.favorito}
+    db.refresh(novo)
+    return novo
 
-# Registro de Logs
-@app.post("/logs/", response_model=Log)
-def create_log(log: LogCreate, db: Session = Depends(get_db)):
-    log_date = log.date or date.today()
-    new_log = DBLog(user_id=log.user_id, habit_id=log.habit_id, date=log_date)
-    db.add(new_log)
-    db.commit()
-    db.refresh(new_log)
-    return new_log
+@app.get("/registros/", response_model=List[Registro])
+def listar_registros(db: Session = Depends(get_db)):
+    return db.query(RegistroDB).all()
 
-@app.get("/logs/", response_model=List[Log])
-def get_logs(db: Session = Depends(get_db)):
-    return db.query(DBLog).all()
+# ==== Motivação ====
 
-# Motivação
 @app.get("/motivacao/")
 def motivacao():
     mensagens = [
@@ -220,33 +175,33 @@ def motivacao():
     ]
     return {"mensagem": random.choice(mensagens)}
 
-# Resumo semanal (com verificação de existência do usuário)
-@app.get("/users/{user_id}/resumo-semanal")
-def resumo_semanal(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(DBUser).filter(DBUser.id == user_id).first()
-    if not user:
+# ==== Resumo Semanal ====
+
+@app.get("/usuarios/{usuario_id}/resumo-semanal")
+def resumo(usuario_id: int, db: Session = Depends(get_db)):
+    usuario = db.query(UsuarioDB).filter(UsuarioDB.id == usuario_id).first()
+    if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     hoje = date.today()
     semana_passada = hoje - timedelta(days=7)
-    logs = db.query(DBLog).filter(DBLog.user_id == user_id, DBLog.date >= semana_passada).all()
+    registros = db.query(RegistroDB).filter(RegistroDB.user_id == usuario_id, RegistroDB.date >= semana_passada).all()
     return {
-        "user_id": user_id,
-        "habitos_realizados_na_ultima_semana": len(logs),
+        "usuario_id": usuario_id,
+        "habitos_realizados_na_ultima_semana": len(registros),
         "mensagem": "Continue assim! Cada dia importa."
     }
 
-# Ranking semanal
+# ==== Ranking Semanal ====
+
 @app.get("/ranking")
-def ranking_usuarios(db: Session = Depends(get_db)):
+def ranking(db: Session = Depends(get_db)):
     hoje = date.today()
     semana_passada = hoje - timedelta(days=7)
-    logs = db.query(DBLog).filter(DBLog.date >= semana_passada).all()
+    registros = db.query(RegistroDB).filter(RegistroDB.date >= semana_passada).all()
     contagem = {}
-    for log in logs:
-        contagem[log.user_id] = contagem.get(log.user_id, 0) + 1
-    ranking = sorted([
-        {"user_id": uid, "total": total} for uid, total in contagem.items()
+    for reg in registros:
+        contagem[reg.user_id] = contagem.get(reg.user_id, 0) + 1
+    resultado = sorted([
+        {"usuario_id": uid, "total": total} for uid, total in contagem.items()
     ], key=lambda x: x["total"], reverse=True)
-    return {"ranking_semanal": ranking}
-
-
+    return {"ranking_semanal": resultado}

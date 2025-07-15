@@ -1,39 +1,38 @@
-from sqlalchemy import Column, Integer, String, Boolean, Date, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey, Date
 from sqlalchemy.orm import relationship
-from sqlalchemy.ext.declarative import declarative_base
+from database import Base
 
-Base = declarative_base()
-
-class User(Base):
-    __tablename__ = "users"
+class Usuario(Base):
+    __tablename__ = "usuarios"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    email = Column(String, unique=True, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
     senha = Column(String, nullable=False)
 
-    habits = relationship("Habit", back_populates="user", cascade="all, delete", passive_deletes=True)
-    logs = relationship("Log", back_populates="user", cascade="all, delete", passive_deletes=True)
+    habitos = relationship("Habito", back_populates="usuario")
+    registros = relationship("Registro", back_populates="usuario")
 
-class Habit(Base):
-    __tablename__ = "habits"
+
+class Habito(Base):
+    __tablename__ = "habitos"
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, nullable=False)
     description = Column(String)
-    favorito = Column(Boolean, default=False)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("usuarios.id"))
 
-    user = relationship("User", back_populates="habits")
-    logs = relationship("Log", back_populates="habit", cascade="all, delete", passive_deletes=True)
+    usuario = relationship("Usuario", back_populates="habitos")
+    registros = relationship("Registro", back_populates="habito")
 
-class Log(Base):
-    __tablename__ = "logs"
+
+class Registro(Base):
+    __tablename__ = "registros"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    habit_id = Column(Integer, ForeignKey("habits.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("usuarios.id"))
+    habit_id = Column(Integer, ForeignKey("habitos.id"))
     date = Column(Date)
 
-    user = relationship("User", back_populates="logs")
-    habit = relationship("Habit", back_populates="logs")
+    usuario = relationship("Usuario", back_populates="registros")
+    habito = relationship("Habito", back_populates="registros")

@@ -5,14 +5,14 @@ from datetime import date
 # --------------------------
 # USUÁRIO
 # --------------------------
-class UserBase(BaseModel):
+class UsuarioBase(BaseModel):
     name: str
     email: str
 
-class UserCreate(UserBase):
+class UsuarioCriar(UsuarioBase):
     senha: str
 
-class User(UserBase):
+class Usuario(UsuarioBase):
     id: int
 
     class Config:
@@ -21,32 +21,31 @@ class User(UserBase):
 # --------------------------
 # HÁBITOS
 # --------------------------
-class HabitBase(BaseModel):
+class HabitoBase(BaseModel):
     title: str
-    description: str
+    description: Optional[str]
     user_id: int
 
-class HabitCreate(HabitBase):
+class HabitoCriar(HabitoBase):
     pass
 
-class Habit(HabitBase):
+class Habito(HabitoBase):
     id: int
-    favorito: Optional[bool] = False
 
     class Config:
         orm_mode = True
 
 # --------------------------
-# LOGS
+# REGISTROS
 # --------------------------
-class LogBase(BaseModel):
+class RegistroBase(BaseModel):  # Corrigido nome
     user_id: int
     habit_id: int
 
-class LogCreate(LogBase):
-    date: Optional[date] = None  # aceita None ou uma data válida
+class RegistroCriar(RegistroBase):
+    date: Optional[date] = None
 
-class Log(LogBase):
+class Registro(RegistroBase):
     id: int
     date: date
 
